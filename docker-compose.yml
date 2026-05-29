@@ -6,9 +6,18 @@ services:
     env_file:
       - .env
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
 
   mongo:
-    image: mongo:7
+    image: mongo:7-jammy
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports:
       - "27017:27017"
+    healthcheck:
+      test: >
+        mongosh --quiet --eval
+        "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"
+      interval: 5s
+      timeout: 5s
+      retries: 20
