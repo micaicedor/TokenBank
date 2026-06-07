@@ -1,0 +1,93 @@
+{
+  "project": "SecurePay Mobile",
+  "updated": "2026-06-07",
+  "tickets": [
+    {
+      "id": "MOB-001",
+      "title": "Tab layout con navegación inferior",
+      "status": "pending",
+      "description": "Configurar el tab navigator con 5 tabs: Dashboard, Pago V1, Pago V2, Transacciones, Settings. Reemplazar los tabs del boilerplate.",
+      "files": ["app/(tabs)/_layout.tsx"],
+      "depends_on": []
+    },
+    {
+      "id": "MOB-002",
+      "title": "Pantalla Dashboard — saldo del usuario",
+      "status": "pending",
+      "description": "Llamar GET /users con el sessionToken, filtrar por tokenId del contexto y mostrar el saldo actual del usuario logueado.",
+      "files": ["app/(tabs)/dashboard.tsx"],
+      "depends_on": ["MOB-001"],
+      "endpoint": "GET /users"
+    },
+    {
+      "id": "MOB-003",
+      "title": "Pantalla Pay V1 — pago sin autenticación",
+      "status": "pending",
+      "description": "Formulario con merchantTokenId, amount y captureMethod. Al enviar hace POST /payments/v1 sin token. Mostrar resultado del pago.",
+      "files": ["app/(tabs)/pay-v1.tsx"],
+      "depends_on": ["MOB-001"],
+      "endpoint": "POST /payments/v1"
+    },
+    {
+      "id": "MOB-004",
+      "title": "utils/crypto.ts — firma RSA con node-forge",
+      "status": "pending",
+      "description": "Implementar canonicalPayload() que construye el JSON canónico con keys ordenadas (amount, captureMethod, merchantTokenId, nonce, payerTokenId) y serializa float correctamente (50 → '50.0'). Implementar signPayment() con RSA-PKCS1v15 + SHA256 usando node-forge. Validar contra script Python del backend.",
+      "files": ["utils/crypto.ts"],
+      "depends_on": [],
+      "critical_detail": "Python serializa float(50) como 50.0, JS produce 50. Hay que forzar el formato manualmente."
+    },
+    {
+      "id": "MOB-005",
+      "title": "Pantalla Pay V2 — pago con nonce + firma RSA",
+      "status": "pending",
+      "description": "1. POST /payments/v2/nonce para obtener nonce. 2. Leer privateKey PEM de AsyncStorage. 3. canonicalPayload + firma RSA. 4. POST /payments/v2 con merchantTokenId, amount, captureMethod, nonce y signature. Mostrar resultado.",
+      "files": ["app/(tabs)/pay-v2.tsx"],
+      "depends_on": ["MOB-001", "MOB-004"],
+      "endpoints": ["POST /payments/v2/nonce", "POST /payments/v2"]
+    },
+    {
+      "id": "MOB-006",
+      "title": "Pantalla Transactions — historial de pagos",
+      "status": "pending",
+      "description": "Llamar GET /payments con sessionToken y mostrar la lista de transacciones en orden cronológico inverso. Mostrar monto, tokens involucrados, método de captura y fecha.",
+      "files": ["app/(tabs)/transactions.tsx"],
+      "depends_on": ["MOB-001"],
+      "endpoint": "GET /payments"
+    },
+    {
+      "id": "MOB-007",
+      "title": "Pantalla Settings — URL del backend y clave privada",
+      "status": "pending",
+      "description": "Input para URL base del backend (se guarda en AsyncStorage como 'settings.baseUrl'). TextArea para pegar la clave privada PEM del usuario (se guarda como 'settings.privateKey'). Botón de logout.",
+      "files": ["app/(tabs)/settings.tsx"],
+      "depends_on": ["MOB-001"]
+    }
+  ],
+  "done": [
+    {
+      "id": "MOB-000a",
+      "title": "AuthContext — sesión con AsyncStorage",
+      "status": "done",
+      "files": ["context/AuthContext.tsx"]
+    },
+    {
+      "id": "MOB-000b",
+      "title": "Login screen",
+      "status": "done",
+      "files": ["app/login.tsx"]
+    },
+    {
+      "id": "MOB-000c",
+      "title": "services/api.ts — wrappers de fetch con URL dinámica",
+      "status": "done",
+      "files": ["services/api.ts"]
+    },
+    {
+      "id": "MOB-000d",
+      "title": "_layout.tsx — AuthProvider + auth guard",
+      "status": "done",
+      "files": ["app/_layout.tsx"]
+    }
+  ]
+}

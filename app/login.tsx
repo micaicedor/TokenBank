@@ -1,4 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
+import { getBaseUrl } from '@/services/api';
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import {
     ActivityIndicator,
@@ -18,13 +20,18 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
+    const { login, sessionToken } = useAuth();
+
+    if (sessionToken) {
+        return <Redirect href="/(tabs)" />
+    }
 
     async function handleLogin() {
         setError('');
         setLoading(true);
         try {
-            const res = await fetch('http://10.0.2.2:5000/auth/login', {
+            const baseUrl = await getBaseUrl();
+            const res = await fetch(`${baseUrl}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password }),
