@@ -1,409 +1,144 @@
-# TokenBank / SecurePay
+# SecurePay
 
-Backend Flask del proyecto SecurePay. Maneja usuarios, sesiones, saldos y pagos entre un pagador y un comercio usando MongoDB.
+Sistema de pagos móvil que demuestra la diferencia de seguridad entre un protocolo sin protección (V1) y uno con autenticación criptográfica (V2).
+
+```
+/
+├── backend/    API REST Flask + MongoDB
+├── mobile/     App Expo React Native
+└── pentest/    Scripts de demostración de ataques
+```
+
+---
 
 ## Requisitos
 
-- Docker Desktop
-- Docker Compose
+- Docker y Docker Compose
+- Node.js 18+ y npm
+- Expo Go instalado en el dispositivo o emulador Android/iOS
 
-## Correr el proyecto
+---
 
-Desde la carpeta `TokenBank`:
+## 1. Levantar el backend
 
-```powershell
+```bash
+cd backend
 docker compose up --build
 ```
 
-La API queda disponible en:
+La API queda disponible en `http://127.0.0.1:5000`.
 
-```text
-http://127.0.0.1:5000
-```
+Cargar usuarios demo (solo la primera vez):
 
-Para verificar que el backend esta corriendo:
-
-```powershell
-curl http://127.0.0.1:5000/health
-```
-
-## Cargar datos demo
-
-En otra terminal:
-
-```powershell
+```bash
 docker compose exec token_bank python scripts/seed_demo.py
 ```
 
 Esto crea:
 
-- Usuario pagador: `payer_demo` / `demo123`
-- Usuario comercio: `merchant_demo` / `demo123`
-- Tokens demo: `PAYER_DEMO` y `MERCHANT_DEMO`
-- Saldos iniciales para probar pagos
+| Usuario | Contraseña | Rol | TokenId |
+|---|---|---|---|
+| `payer_demo` | `demo123` | pagador | `PAYER_DEMO` |
+| `merchant_demo` | `demo123` | comercio | `MERCHANT_DEMO` |
 
-## Como funcionan los tokens
+---
 
-En este proyecto hay tres conceptos importantes:
+## 2. Correr la app móvil
 
-1. `tokenId`
-
-   Es el identificador publico de cada usuario dentro del sistema.
-
-   Por ejemplo:
-
-   ```text
-   PAYER_DEMO
-   MERCHANT_DEMO
-   ```
-
-   El pagador usa el `tokenId` del comercio para saber a quien pagar. Ese token puede llegar por QR, NFC o ingreso manual. El backend lo usa para buscar al usuario en MongoDB.
-
-2. Token de sesion
-
-   Es el token que devuelve el login. Sirve para demostrar que un usuario ya inicio sesion.
-
-   Se obtiene con:
-
-   ```text
-   POST /auth/login
-   ```
-
-   Ejemplo de body:
-
-   ```json
-   {
-     "username": "payer_demo",
-     "password": "demo123"
-   }
-   ```
-
-   La respuesta incluye algo como:
-
-   ```json
-   {
-     "sessionToken": "TOKEN_GENERADO",
-     "tokenId": "PAYER_DEMO",
-     "role": "payer"
-   }
-   ```
-
-   Para usar endpoints protegidos, se envia en el header:
-
-   ```text
-   Authorization: Bearer TOKEN_GENERADO
-   ```
-
-3. Nonce de V2
-
-   Es un valor aleatorio de un solo uso. Se pide antes de hacer un pago seguro V2:
-
-   ```text
-   POST /payments/v2/nonce
-   ```
-
-   El nonce expira a los 5 minutos y queda marcado como usado despues del pago.
-
-## Flujo de pago V1
-
-V1 es el flujo simple. No necesita login, nonce ni firma. El backend recibe los tokens de usuario y el monto:
-
-```json
-{
-  "payerTokenId": "PAYER_DEMO",
-  "merchantTokenId": "MERCHANT_DEMO",
-  "amount": 50,
-  "captureMethod": "QR"
-}
+```bash
+cd mobile
+npm install
+npm start
 ```
 
-Luego valida saldo, resta saldo al pagador, suma saldo al comercio y registra la transaccion.
+Escanea el QR con Expo Go o presiona `a` para abrir en el emulador Android.
 
-Para probarlo en Postman:
+**Usuarios de prueba:**
+- Pagador: `payer_demo / demo123`
+- Comercio: `merchant_demo / demo123`
 
-```text
-POST http://127.0.0.1:5000/payments/v1
+> Si usas un dispositivo físico, la app detecta automáticamente la IP del servidor. Si no conecta, verifica que el dispositivo esté en la misma red WiFi que el computador.
+
+---
+
+## 3. Flujo de la app
+
+### Pago inseguro (V1)
+
+1. Inicia sesión con `payer_demo`
+2. Pestaña **Pagar** → busca `merchant_demo`
+3. Ingresa el monto → **PAGAR INSEGURO**
+4. El pago se envía sin autenticación ni firma — vulnerable a replay attack
+
+### Pago seguro (V2)
+
+1. Inicia sesión con `payer_demo`
+2. Pestaña **Pagar** → busca `merchant_demo`
+3. Ingresa el monto → **PAGAR SEGURO**
+4. La app solicita un nonce al backend, firma el payload con RSA y envía el pago
+5. El backend verifica la firma y quema el nonce — el replay attack falla
+
+---
+
+## 4. Demostración de pentesting
+
+Los scripts en `pentest/` muestran los ataques en acción desde la terminal.
+
+### Demo completa del replay attack
+
+```bash
+cd backend
+docker compose exec token_bank python /pentest/pentest_demo.py
 ```
 
-Body:
+O desde fuera del contenedor (requiere `pip install requests cryptography`):
 
-```json
-{
-  "payerTokenId": "PAYER_DEMO",
-  "merchantTokenId": "MERCHANT_DEMO",
-  "amount": 50,
-  "captureMethod": "QR"
-}
+```bash
+cd pentest
+python pentest_demo.py
 ```
 
-Respuesta esperada:
+El script ejecuta tres fases:
 
-```json
-{
-  "message": "Pago V1 aprobado",
-  "payerBalanceAfter": 950.0,
-  "merchantBalanceAfter": 150.0
-}
-```
+**Fase 1 — Intercepción de sessionToken**
+Simula la captura del token de sesión en tráfico HTTP y lo usa para acceder a datos protegidos.
 
-## Flujo de pago V2
+**Fase 2 — Replay attack en V1**
+Envía el mismo pago 3 veces sin autenticación. Los tres pasan. Demuestra que V1 no tiene ninguna protección contra repetición.
 
-V2 agrega seguridad con sesion, nonce y firma RSA:
+**Fase 3 — V2 resiste el ataque**
+- Intenta pagar sin sessionToken → `401`
+- Envía el mismo pago dos veces con el mismo nonce → segundo intento: `409 Nonce ya utilizado`
+- Envía una firma falsa → `401 Firma inválida`
 
-1. El pagador inicia sesion con `/auth/login`.
-2. El pagador solicita un nonce con `/payments/v2/nonce`.
-3. La app firma los datos del pago con la clave privada del pagador.
-4. El backend verifica la firma usando la `publicKey` guardada del usuario.
-5. Si la firma y el nonce son validos, mueve el saldo y marca el nonce como usado.
+### Demo de pago V2 legítimo
 
-Body esperado para `POST /payments/v2`:
-
-```json
-{
-  "merchantTokenId": "MERCHANT_DEMO",
-  "amount": 50,
-  "captureMethod": "QR",
-  "nonce": "NONCE_GENERADO",
-  "signature": "FIRMA_RSA_EN_BASE64"
-}
-```
-
-El backend no guarda claves privadas. Solo guarda la `publicKey` del usuario para verificar firmas.
-
-## Mostrar V2 funcionando
-
-Para una demostracion rapida del pago V2 completo:
-
-```powershell
-docker compose exec token_bank python scripts/seed_demo.py
+```bash
+cd backend
 docker compose exec token_bank python scripts/v2_demo_payment.py
 ```
 
-Ese script hace el flujo completo:
+Hace el flujo completo: login → nonce → firma → pago aprobado.
 
-1. Inicia sesion como `payer_demo`.
-2. Pide un nonce.
-3. Firma el pago con la clave privada demo.
-4. Envia el pago a `/payments/v2`.
-5. Muestra la respuesta aprobada del backend.
+---
 
-## Flujo para mostrar en Postman
+## Por qué V2 es seguro
 
-Antes de abrir Postman, deja Docker corriendo y carga los datos demo:
+| Mecanismo | Qué protege |
+|---|---|
+| `sessionToken` | Solo el usuario autenticado puede iniciar un pago |
+| Nonce de un solo uso | El mismo request no puede reenviarse |
+| Firma RSA-PKCS1v15 + SHA256 | El payload no puede alterarse ni falsificarse |
 
-```powershell
-docker compose up --build
-docker compose exec token_bank python scripts/seed_demo.py
+Un atacante que capture el tráfico obtiene un request que ya no puede reutilizar.
+
+---
+
+## Endpoints
+
 ```
-
-En Postman usa esta base:
-
-```text
-http://127.0.0.1:5000
-```
-
-### 1. Verificar que la API esta viva
-
-```text
-GET http://127.0.0.1:5000/health
-```
-
-Respuesta esperada:
-
-```json
-{
-  "message": "token_bank corriendo",
-  "status": "ok"
-}
-```
-
-### 2. Ver usuarios demo
-
-```text
-GET http://127.0.0.1:5000/users
-```
-
-Debe mostrar `payer_demo` y `merchant_demo` con sus saldos.
-
-### 3. Probar pago V1
-
-```text
-POST http://127.0.0.1:5000/payments/v1
-```
-
-Body:
-
-```json
-{
-  "payerTokenId": "PAYER_DEMO",
-  "merchantTokenId": "MERCHANT_DEMO",
-  "amount": 50,
-  "captureMethod": "QR"
-}
-```
-
-Luego revisa saldos:
-
-```text
-GET http://127.0.0.1:5000/users
-```
-
-### 4. Crear usuario manualmente
-
-```text
-POST http://127.0.0.1:5000/users
-```
-
-Body para crear un pagador:
-
-```json
-{
-  "name": "Pagador Manual",
-  "username": "payer_manual",
-  "password": "demo123",
-  "role": "payer",
-  "balance": 500,
-  "tokenId": "PAYER_MANUAL"
-}
-```
-
-Body para crear un comercio:
-
-```json
-{
-  "name": "Comercio Manual",
-  "username": "merchant_manual",
-  "password": "demo123",
-  "role": "merchant",
-  "balance": 0,
-  "tokenId": "MERCHANT_MANUAL"
-}
-```
-
-Notas:
-
-- `role` solo puede ser `payer` o `merchant`.
-- `username` no se puede repetir.
-- `tokenId` no se puede repetir.
-- Para pagos V2, el pagador necesita `publicKey`; los usuarios creados por `seed_demo.py` ya la tienen.
-
-### 5. Iniciar sesion como pagador
-
-```text
-POST http://127.0.0.1:5000/auth/login
-```
-
-Body:
-
-```json
-{
-  "username": "payer_demo",
-  "password": "demo123"
-}
-```
-
-Copia el valor de `sessionToken` de la respuesta.
-
-### 6. Solicitar nonce para V2
-
-```text
-POST http://127.0.0.1:5000/payments/v2/nonce
-```
-
-Header:
-
-```text
-Authorization: Bearer SESSION_TOKEN
-```
-
-Body:
-
-```json
-{}
-```
-
-Copia el valor de `nonce` de la respuesta.
-
-### 7. Generar el body firmado
-
-En PowerShell, reemplaza `NONCE_GENERADO` por el nonce copiado:
-
-```powershell
-docker compose exec -e NONCE=NONCE_GENERADO token_bank python scripts/sign_v2_postman_body.py
-```
-
-El comando imprime un JSON con `merchantTokenId`, `amount`, `captureMethod`, `nonce` y `signature`.
-
-### 8. Enviar pago V2
-
-```text
-POST http://127.0.0.1:5000/payments/v2
-```
-
-Header:
-
-```text
-Authorization: Bearer SESSION_TOKEN
-```
-
-Body:
-
-Copia el JSON que genero el comando anterior.
-
-Respuesta esperada:
-
-```json
-{
-  "message": "Pago V2 aprobado",
-  "payerBalanceAfter": 950.0,
-  "merchantBalanceAfter": 150.0
-}
-```
-
-### 9. Confirmar saldos y transacciones
-
-Usuarios:
-
-```text
-GET http://127.0.0.1:5000/users
-```
-
-Transacciones:
-
-```text
-GET http://127.0.0.1:5000/payments
-```
-
-## Flujo Postman resumido
-
-Si ya entiendes el flujo, estos son los pasos cortos:
-
-1. Hacer login en `POST /auth/login`.
-2. Copiar el `sessionToken`.
-3. Pedir nonce en `POST /payments/v2/nonce` usando `Authorization: Bearer TOKEN`.
-4. Generar el body firmado para Postman:
-
-```powershell
-docker compose exec -e NONCE=NONCE_GENERADO token_bank python scripts/sign_v2_postman_body.py
-```
-
-5. Copiar el JSON generado y enviarlo a:
-
-```text
-POST http://127.0.0.1:5000/payments/v2
-```
-
-con el mismo header:
-
-```text
-Authorization: Bearer TOKEN
-```
-
-## Endpoints principales
-
-```text
+GET  /health
 POST /auth/login
-POST /users
 GET  /users
 POST /payments/v1
 POST /payments/v2/nonce
@@ -411,22 +146,17 @@ POST /payments/v2
 GET  /payments
 ```
 
-## Comandos utiles
+---
 
-Apagar contenedores:
+## Comandos útiles
 
-```powershell
+```bash
+# Apagar contenedores
 docker compose down
-```
 
-Ver logs:
-
-```powershell
+# Ver logs
 docker compose logs -f
-```
 
-Reconstruir despues de cambios:
-
-```powershell
+# Reconstruir tras cambios
 docker compose up --build
 ```
