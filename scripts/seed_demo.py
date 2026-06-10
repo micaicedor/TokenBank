@@ -51,9 +51,10 @@ def ensure_key_pair(private_key_path):
 
 def upsert_user(db, user):
     now = utcnow()
+    password = user.pop("password")
     user = {
         **user,
-        "passwordHash": generate_password_hash(user.pop("password")),
+        "passwordHash": generate_password_hash(password),
         "active": True,
         "updatedAt": now
     }
@@ -61,6 +62,7 @@ def upsert_user(db, user):
         {"username": user["username"]},
         {
             "$set": user,
+            "$unset": {"password": ""},
             "$setOnInsert": {"createdAt": now}
         },
         upsert=True
