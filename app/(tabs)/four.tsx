@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     paddingHorizontal: 24,
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
   screenTitle: {
     fontSize: 13,
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   avatarText: { color: '#fff', fontSize: 26, fontWeight: '700' },
-  username: { fontSize: 20, fontWeight: '700' },
+  username: { fontSize: 20, fontWeight: '700', color: '#111' },
   tokenId: { fontSize: 13, color: '#888' },
   card: {
     width: '100%',

@@ -38,7 +38,7 @@ export default function LoginScreen() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data?.error ?? 'Error al iniciar sesión');
-            await login(data.sessionToken, data.tokenId, data.role);
+            await login(data.sessionToken, data.tokenId, data.role, data.privateKey);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Error de conexión');
         } finally {

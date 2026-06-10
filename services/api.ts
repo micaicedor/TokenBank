@@ -40,6 +40,7 @@ export interface LoginResponse {
   sessionToken: string;
   tokenId: string;
   role: string;
+  privateKey: string | null;
 }
 
 export function login(username: string, password: string): Promise<LoginResponse> {

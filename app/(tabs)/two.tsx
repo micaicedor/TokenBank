@@ -1,5 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
-import { getUsers, payV1, User } from '@/services/api';
+import { getNonce, getUsers, payV1, payV2, User } from '@/services/api';
+import { signPayment } from '@/utils/crypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -58,20 +60,42 @@ export default function PayScreen() {
   }
 
   async function handleConfirm() {
-    if (protocol === 'v2') {
-      setResultOk(false);
-      setResultError('V2 requiere configurar la clave RSA en Ajustes (próximamente).');
-      setStep('result');
-      return;
-    }
     setLoading(true);
     try {
-      await payV1({
-        payerTokenId: tokenId!,
-        merchantTokenId: recipient!.tokenId,
-        amount: parseFloat(amount),
-        captureMethod: 'manual',
-      });
+      const amt = parseFloat(amount);
+      if (protocol === 'v2') {
+        const privateKeyPem = await AsyncStorage.getItem('settings.privateKey');
+        if (!privateKeyPem) {
+          setResultOk(false);
+          setResultError('Falta la clave privada RSA. Configúrala en Ajustes (pestaña Perfil).');
+          setStep('result');
+          return;
+        }
+        const { nonce } = await getNonce(sessionToken!);
+        const signature = signPayment(
+          privateKeyPem,
+          tokenId!,
+          recipient!.tokenId,
+          amt,
+          'manual',
+          nonce
+        );
+        await payV2({
+          payerTokenId: tokenId!,
+          merchantTokenId: recipient!.tokenId,
+          amount: amt,
+          captureMethod: 'manual',
+          nonce,
+          signature,
+        }, sessionToken!);
+      } else {
+        await payV1({
+          payerTokenId: tokenId!,
+          merchantTokenId: recipient!.tokenId,
+          amount: amt,
+          captureMethod: 'manual',
+        });
+      }
       setResultOk(true);
     } catch (e: unknown) {
       setResultOk(false);
@@ -268,12 +292,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     paddingTop: 48,
+    backgroundColor: '#fff',
   },
   amountContainer: {
     flex: 1,
     alignItems: 'center',
     padding: 24,
     paddingTop: 48,
+    backgroundColor: '#fff',
   },
   header: {
     fontSize: 13,
@@ -298,6 +324,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 8,
+    color: '#000',
+    backgroundColor: '#fff',
   },
   errorText: { color: 'red', fontSize: 13, marginBottom: 8 },
   accountCard: {
@@ -320,9 +348,9 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   accountLabel: { fontSize: 10, color: '#888', letterSpacing: 0.5 },
-  accountName: { fontSize: 16, fontWeight: '600' },
+  accountName: { fontSize: 16, fontWeight: '600', color: '#111' },
   amountLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 1, color: '#888', marginTop: 16 },
-  amountDisplay: { fontSize: 52, fontWeight: '700', marginVertical: 8 },
+  amountDisplay: { fontSize: 52, fontWeight: '700', marginVertical: 8, color: '#111' },
   numpad: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -334,7 +362,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  numKeyText: { fontSize: 24, fontWeight: '400' },
+  numKeyText: { fontSize: 24, fontWeight: '400', color: '#111' },
   btnPrimary: {
     backgroundColor: '#1a1a2e',
     borderRadius: 10,
@@ -402,7 +430,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   detailLabel: { fontSize: 11, color: '#888', letterSpacing: 0.5 },
-  detailValue: { fontSize: 14, fontWeight: '600' },
+  detailValue: { fontSize: 14, fontWeight: '600', color: '#111' },
   v2Badge: { color: '#2e7d32' },
   v1Badge: { color: '#cc0000' },
   resultIcon: {
@@ -417,6 +445,6 @@ const styles = StyleSheet.create({
   resultIconOk: { borderColor: '#2e7d32' },
   resultIconErr: { borderColor: '#cc0000' },
   resultIconText: { fontSize: 36, fontWeight: '700' },
-  resultTitle: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
+  resultTitle: { fontSize: 22, fontWeight: '700', marginBottom: 8, color: '#111' },
   resultDesc: { fontSize: 15, color: '#555', textAlign: 'center', paddingHorizontal: 24 },
 });

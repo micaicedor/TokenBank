@@ -10,7 +10,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
     isLoading: boolean;
-    login: (sessionToken: string, tokenId: string, role: string) => Promise<void>;
+    login: (sessionToken: string, tokenId: string, role: string, privateKey?: string | null) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -37,21 +37,21 @@ export function AuthProvider({ children }: { children: React.ReactNode}) {
         // setIsLoading(false) al final
     }, []);
     // TODO: función login que guarde en AsyncStorage y actualice estado
-    async function login(sessionToken:string, tokenId: string, role:string) {
-        await AsyncStorage.multiSet([
+    async function login(sessionToken: string, tokenId: string, role: string, privateKey?: string | null) {
+        const pairs: [string, string][] = [
             ['auth.sessionToken', sessionToken],
-            // agrega tokenId y role
             ['auth.tokenId', tokenId],
             ['auth.role', role],
-        ]);
-        // actualiza el estado aqui
+        ];
+        if (privateKey) pairs.push(['settings.privateKey', privateKey]);
+        await AsyncStorage.multiSet(pairs);
         setSessionToken(sessionToken);
         setTokenId(tokenId);
         setRole(role);
     }
-    // TODO: función logout que borre AsyncStorage y limpie estado
+
     async function logout() {
-        await AsyncStorage.multiRemove(['auth.sessionToken', 'auth.tokenId', 'auth.role']);
+        await AsyncStorage.multiRemove(['auth.sessionToken', 'auth.tokenId', 'auth.role', 'settings.privateKey']);
         setSessionToken(null);
         setTokenId(null);
         setRole(null);

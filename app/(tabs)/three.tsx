@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 48,
     padding: 24,
+    backgroundColor: '#fff',
   },
   header: {
     fontSize: 13,
@@ -132,6 +133,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     marginBottom: 24,
+    color: '#111',
   },
   actions: {
     flexDirection: 'row',
