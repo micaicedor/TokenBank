@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 *.log
 scripts/demo_keys/
+node_modules
