@@ -40,6 +40,7 @@ def login():
         "sessionToken": session_token,
         "tokenId": user["tokenId"],
         "role": user["role"],
+        "privateKey": user.get("privateKey"),
         "user": {
             "id": str(user["_id"]),
             "name": user["name"],

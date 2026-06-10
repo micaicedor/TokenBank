@@ -80,6 +80,9 @@ def main():
     payer_public_key = ensure_key_pair(PAYER_PRIVATE_KEY)
     merchant_public_key = ensure_key_pair(MERCHANT_PRIVATE_KEY)
 
+    payer_private_key = PAYER_PRIVATE_KEY.read_text()
+    merchant_private_key = MERCHANT_PRIVATE_KEY.read_text()
+
     payer = upsert_user(db, {
         "name": "Pagador Demo",
         "username": "payer_demo",
@@ -87,7 +90,8 @@ def main():
         "role": "payer",
         "balance": 1000.0,
         "tokenId": "PAYER_DEMO",
-        "publicKey": payer_public_key
+        "publicKey": payer_public_key,
+        "privateKey": payer_private_key,
     })
     merchant = upsert_user(db, {
         "name": "Comercio Demo",
@@ -96,7 +100,8 @@ def main():
         "role": "merchant",
         "balance": 100.0,
         "tokenId": "MERCHANT_DEMO",
-        "publicKey": merchant_public_key
+        "publicKey": merchant_public_key,
+        "privateKey": merchant_private_key,
     })
 
     db.sessions.delete_many({"userId": {"$in": [payer["_id"], merchant["_id"]]}})
