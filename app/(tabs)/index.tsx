@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { getTransactions, getUsers, User } from '@/services/api';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -72,8 +72,9 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!sessionToken || !tokenId) return;
+    setLoading(true);
     Promise.all([
       getUsers(sessionToken),
       getTransactions(sessionToken),
@@ -84,7 +85,7 @@ export default function DashboardScreen() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [sessionToken, tokenId]);
+  }, [sessionToken, tokenId]));
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#fff" /></View>;
