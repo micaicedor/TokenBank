@@ -175,7 +175,7 @@ export default function PayScreen() {
           </View>
         </View>
 
-        <Text style={styles.amountLabel}>MONTO A PAGAR (MXN)</Text>
+        <Text style={styles.amountLabel}>MONTO A PAGAR (COP)</Text>
         <Text style={styles.amountDisplay}>${amount || '0'}</Text>
 
         <View style={styles.numpad}>
@@ -235,7 +235,7 @@ export default function PayScreen() {
         <View style={styles.detailsCard}>
           {[
             ['DESTINATARIO', recipient!.username],
-            ['MONTO', `$ ${parseFloat(amount).toFixed(2)} MXN`],
+            ['MONTO', `$ ${parseFloat(amount).toLocaleString('es-CO')} COP`],
             ['PROTOCOLO', isV2 ? 'V2 — NONCE INCLUIDO' : 'V1 — SIN NONCE'],
           ].map(([label, value]) => (
             <View key={label} style={styles.detailRow}>

@@ -116,9 +116,9 @@ export default function DashboardScreen() {
         <View style={styles.balanceRow}>
           <Text style={styles.balanceCurrency}>$</Text>
           <Text style={styles.balanceAmount}>
-            {user?.balance?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) ?? '0.00'}
+            {user?.balance?.toLocaleString('es-CO', { minimumFractionDigits: 0 }) ?? '0'}
           </Text>
-          <Text style={styles.balanceMXN}>MXN</Text>
+          <Text style={styles.balanceMXN}>COP</Text>
         </View>
 
         {/* Botones PAGAR / COBRAR */}
